@@ -1,4 +1,16 @@
+from calendar import monthrange
+from datetime import date
+
 from shiny import ui
+
+
+def add_one_month(current_date):
+    year = current_date.year + (1 if current_date.month == 12 else 0)
+    month = 1 if current_date.month == 12 else current_date.month + 1
+    last_day = monthrange(year, month)[1]
+    day = min(current_date.day, last_day)
+    return date(year, month, day)
+
 
 app_ui = ui.page_navbar(
     ui.nav_panel(
@@ -18,23 +30,22 @@ app_ui = ui.page_navbar(
 
     ui.nav_panel(
         "📦 Matériel",
-        ui.layout_sidebar(
-            ui.sidebar(
-                ui.input_text("recherche", "Rechercher", placeholder="Nom, référence..."),
-                ui.input_select("categorie", "Catégorie", choices={"": "Toutes"}),
-                ui.input_select(
-                    "etat", "État",
-                    choices={
-                        "": "Tous",
-                        "disponible": "Disponible",
-                        "emprunte": "Emprunté",
-                        "maintenance": "Maintenance",
-                    },
-                ),
-            ),
             ui.card(
                 ui.card_header("Liste du matériel"),
                 ui.output_data_frame("table_materiel"),
+        ),
+    ),
+
+    ui.nav_panel(
+        "📅 Disponibilités",
+        ui.layout_sidebar(
+            ui.sidebar(
+                ui.input_date("date_dispo_debut", "Date de début", value=date.today()),
+                ui.input_date("date_dispo_fin", "Date de fin", value=add_one_month(date.today())),
+            ),
+            ui.card(
+                ui.card_header("Disponibilité par sous-catégorie"),
+                ui.output_data_frame("calendrier_disponibilite"),
             ),
         ),
     ),
@@ -50,6 +61,7 @@ app_ui = ui.page_navbar(
                         ui.input_select(
                             "categorie_ajout", "Catégorie",
                             choices={
+                                "": "Sélectionner",
                                 "son": "Son",
                                 "camera": "Caméra",
                                 "lumiere": "Lumière",
@@ -57,17 +69,15 @@ app_ui = ui.page_navbar(
                                 "scene": "Scène",
                             },
                         ),
-                        ui.input_select(
-                            "sous_cat", "Sous-Catégories",
-                            choices={
-                                "son": "Son",
-                                "camera": "Caméra",
-                                "lumiere": "Lumière",
-                                "elec": "Électrique",
-                                "scene": "Scène",
-                            },
+                        ui.input_selectize(
+                            "sous_cat",
+                            "Sous-Catégorie",
+                            choices={},
+                            selected="",
+                            options={"create": True, "placeholder": "Choisir ou taper une sous-catégorie"},
                         ),
                         ui.input_numeric("nombre",'Nombre',1),
+                        ui.input_numeric("prix", "Prix (€)", value=0.0, min=0),
                         ui.input_text_area("description", "Description"),
                         ui.input_select("proprietaire","Propriétaire", choices = {"":""},),
                         ui.input_action_button("ajouter_materiel", "Ajouter le matériel", class_="btn-primary")
@@ -101,14 +111,20 @@ app_ui = ui.page_navbar(
         "📅 Demande d'emprunt",
         ui.card(
             ui.card_header("Faire une demande d'emprunt"),
-            ui.input_select("materiel_emprunt", "Matériel", choices={}),
+            ui.output_data_frame("table_demande_materiel"),
             ui.input_text("demandeur", "Nom du demandeur"),
             ui.input_text("email", "Email"),
             ui.input_date("date_debut", "Date de début"),
             ui.input_date("date_fin", "Date de fin"),
+            ui.input_text("heure_debut", "Heure de début", placeholder="09:00"),
+            ui.input_text("heure_fin", "Heure de fin", placeholder="18:00"),
             ui.input_text_area("motif", "Motif de l'emprunt"),
             ui.input_action_button("envoyer_demande", "Envoyer la demande", class_="btn-success"),
             ui.output_ui("message_demande"),
+            ui.card(
+                ui.card_header("Devis récapitulatif"),
+                ui.output_ui("devis_demande"),
+            ),
         ),
     ),
 
@@ -116,6 +132,11 @@ app_ui = ui.page_navbar(
         "📋 Demandes",
         ui.card(
             ui.card_header("Demandes d'emprunt"),
+            ui.input_select("demande_validation", "Demande à traiter", choices={"": "Sélectionner une demande"}),
+            ui.layout_columns(
+                ui.input_action_button("accepter_demande", "Valider", class_="btn-success"),
+                ui.input_action_button("refuser_demande", "Refuser", class_="btn-danger"),
+            ),
             ui.output_data_frame("table_demandes"),
         ),
     ),
